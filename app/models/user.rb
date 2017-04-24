@@ -40,11 +40,11 @@ class User < ApplicationModel
   before_validation :check_name, :check_email, :check_login, :ensure_password
   before_create   :check_preferences_default, :validate_roles, :domain_based_assignment, :set_locale
   before_update   :check_preferences_default, :validate_roles, :reset_login_failed
-  after_create    :avatar_for_email_check
-  after_update    :avatar_for_email_check
+  after_create    :avatar_for_email_check, :check_group_buffer
+  after_update    :avatar_for_email_check, :check_group_buffer
   after_destroy   :avatar_destroy
 
-  has_and_belongs_to_many :groups,          after_add: :cache_update, after_remove: :cache_update, class_name: 'Group'
+  has_and_belongs_to_many :groups
   has_and_belongs_to_many :roles,           after_add: [:cache_update, :check_notifications], after_remove: :cache_update, before_add: :validate_agent_limit, before_remove: :last_admin_check, class_name: 'Role'
   has_and_belongs_to_many :organizations,   after_add: :cache_update, after_remove: :cache_update, class_name: 'Organization'
   #has_many                :permissions,     class_name: 'Permission', through: :roles, class_name: 'Role'
@@ -75,10 +75,117 @@ class User < ApplicationModel
                                   :login_failed,
                                   :preferences
 
+  attr_accessor :group_buffer
+
   def ignore_search_indexing?(_action)
     # ignore internal user
     return true if id == 1
     false
+  end
+
+=begin
+
+set groups of user
+
+  user = User.find(123)
+  success = user.groups = [
+    1: 'rw',
+    2: 'ro',
+    3: ['ro', 'note'],
+  ]
+
+returns
+
+  true | false
+
+=end
+
+  def groups=data
+    @group_buffer = {}
+    if data.class == Array || data.class == Group::ActiveRecord_Relation
+      data.each { |item|
+        if item.class == String
+          item = Group.find_by(name: item)
+        end
+        raise 'Only Group is accepted for groups param.' if item.class != Group
+        @group_buffer[item.id] ||= []
+        @group_buffer[item.id].push 'rw'
+      }
+      return true
+    end
+    data.each { |group_id, permission|
+      @group_buffer[group_id] ||= []
+      @group_buffer[group_id].push permission
+    }
+    true
+  end
+
+=begin
+
+get groups of user
+
+  user = User.find(123)
+  groups = user.groups(type)
+
+returns
+
+  [group1, group2, ...]
+
+=end
+
+  def groups(type = 'rw')
+    Group.joins(:groups_users)
+         .where('groups_users.group_id = groups.id')
+         .where(groups_users: { user_id: id }, groups: { active: true })
+         .where('(groups_users.permission = ? OR groups_users.permission = ?)', type, 'rw')
+         .distinct('groups.name')
+         .order(:id)
+  end
+
+=begin
+
+set group_ids of user
+
+  user = User.find(123)
+  success = user.group_ids = [1, 2, 3, ...]
+returns
+
+  [1, 2, 3, ...]
+
+=end
+
+  def group_ids=data
+    @group_buffer = {}
+    if data.class == Array
+      data.each { |group_id|
+        @group_buffer[group_id] ||= []
+        @group_buffer[group_id].push 'rw'
+      }
+      return data
+    end
+    raise 'MISSING!'
+  end
+
+=begin
+
+get group_ids of user
+
+  user = User.find(123)
+  success = user.group_ids('rw')
+returns
+
+  [1, 2, 3, ...]
+
+=end
+
+  def group_ids(type = 'rw')
+    Group.joins(:groups_users)
+         .where('groups_users.group_id = groups.id')
+         .where(groups_users: { user_id: id }, groups: { active: true })
+         .where('(groups_users.permission = ? OR groups_users.permission = ?)', type, 'rw')
+         .distinct('groups.name')
+         .order(:id)
+         .pluck(:id)
   end
 
 =begin
@@ -1001,5 +1108,25 @@ raise 'Minimum one user need to have admin permissions'
     return if !changes
     return if !changes['password']
     self.login_failed = 0
+  end
+
+  def check_group_buffer
+    return if @group_buffer.nil?
+    UserGroup.where(user_id: id).destroy_all
+    @group_buffer.each { |group_id, permission|
+      if permission.class != Array
+        permission = [permission]
+      end
+      permission.each { |item|
+        UserGroup.create!(
+          user_id: id,
+          group_id: group_id,
+          permission: item,
+        )
+      }
+    }
+    @group_buffer = nil
+    cache_delete
+    true
   end
 end

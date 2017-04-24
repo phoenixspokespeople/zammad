@@ -3,8 +3,8 @@ module AccessesTickets
 
   private
 
-  def ticket_permission(ticket)
-    return true if ticket.permission(current_user: current_user)
+  def ticket_permission(ticket, type)
+    return true if ticket.permission(current_user: current_user, type: type)
     raise Exceptions::NotAuthorized
   end
 end

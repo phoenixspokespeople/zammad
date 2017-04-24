@@ -21,7 +21,7 @@ class TicketsController < ApplicationController
       per_page = 100
     end
 
-    access_condition = Ticket.access_condition(current_user)
+    access_condition = Ticket.access_condition(current_user, 'ro')
     tickets = Ticket.where(access_condition).order(id: 'ASC').offset(offset).limit(per_page)
 
     if params[:expand]
@@ -55,7 +55,7 @@ class TicketsController < ApplicationController
 
     # permission check
     ticket = Ticket.find(params[:id])
-    ticket_permission(ticket)
+    ticket_permission(ticket, 'ro')
 
     if params[:expand]
       result = ticket.attributes_with_association_names
@@ -183,7 +183,7 @@ class TicketsController < ApplicationController
 
     # permission check
     ticket = Ticket.find(params[:id])
-    ticket_permission(ticket)
+    ticket_permission(ticket, 'rw')
 
     clean_params = Ticket.association_name_to_id_convert(params)
     clean_params = Ticket.param_cleanup(clean_params, true)
@@ -221,7 +221,7 @@ class TicketsController < ApplicationController
 
     # permission check
     ticket = Ticket.find(params[:id])
-    ticket_permission(ticket)
+    ticket_permission(ticket, 'rw')
 
     raise Exceptions::NotAuthorized, 'Not authorized (admin permission required)!' if !current_user.permissions?('admin')
 
@@ -249,7 +249,7 @@ class TicketsController < ApplicationController
     ticket = Ticket.find(params[:id])
 
     # permission check
-    ticket_permission(ticket)
+    ticket_permission(ticket, 'ro')
 
     # get history of ticket
     history = ticket.history_get(true)
@@ -265,7 +265,7 @@ class TicketsController < ApplicationController
     assets = ticket.assets({})
 
     # open tickets by customer
-    access_condition = Ticket.access_condition(current_user)
+    access_condition = Ticket.access_condition(current_user, 'ro')
 
     ticket_lists = Ticket
                    .where(
@@ -330,7 +330,7 @@ class TicketsController < ApplicationController
     end
 
     # permission check
-    ticket_permission(ticket_master)
+    ticket_permission(ticket_master, 'rw')
 
     # check slave ticket
     ticket_slave = Ticket.find_by(id: params[:slave_ticket_id])
@@ -343,7 +343,7 @@ class TicketsController < ApplicationController
     end
 
     # permission check
-    ticket_permission(ticket_slave)
+    ticket_permission(ticket_slave, 'rw')
 
     # check diffetent ticket ids
     if ticket_slave.id == ticket_master.id
@@ -373,7 +373,7 @@ class TicketsController < ApplicationController
 
     # permission check
     ticket = Ticket.find(params[:ticket_id])
-    ticket_permission(ticket)
+    ticket_permission(ticket, 'ro')
     assets = ticket.assets({})
 
     # get related articles
@@ -483,7 +483,7 @@ class TicketsController < ApplicationController
     # lookup open user tickets
     limit            = 100
     assets           = {}
-    access_condition = Ticket.access_condition(current_user)
+    access_condition = Ticket.access_condition(current_user, 'ro')
 
     user_tickets = {}
     if params[:user_id]

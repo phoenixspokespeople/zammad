@@ -70,7 +70,7 @@ returns
         types.push 'email'
       end
       types.each { |type_name|
-        type = Ticket::Article::Type.lookup( name: type_name )
+        type = Ticket::Article::Type.lookup(name: type_name)
         if type
           type_ids.push type.id
         end
@@ -88,7 +88,7 @@ returns
     Group.where(active: true).each { |group|
       assets = group.assets(assets)
       dependencies[:group_id][group.id] = { owner_id: [] }
-      group.users.each { |user|
+      group.users('rw').each { |user|
         next if !agents[ user.id ]
         assets = user.assets(assets)
         dependencies[:group_id][ group.id ][ :owner_id ].push user.id

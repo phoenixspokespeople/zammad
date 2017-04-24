@@ -6,10 +6,32 @@ class Group < ApplicationModel
   include LatestChangeObserved
   include Historisable
 
-  has_and_belongs_to_many  :users,         after_add: :cache_update, after_remove: :cache_update
+  has_and_belongs_to_many  :users
   belongs_to               :email_address
   belongs_to               :signature
   validates                :name, presence: true
 
   activity_stream_permission 'admin.group'
+
+=begin
+
+get users of group
+
+  group = Group.find(123)
+  users = group.users('ro')
+
+returns
+
+  [user1, user2, ...]
+
+=end
+
+  def users(type = 'rw')
+    User.joins(:groups)
+        .where('groups_users.user_id = users.id')
+        .where(groups_users: { group_id: id }, users: { active: true })
+        .where('(groups_users.permission = ? OR groups_users.permission = ?)', type, 'rw')
+        .order(:id)
+  end
+
 end

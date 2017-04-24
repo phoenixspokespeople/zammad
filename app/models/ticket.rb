@@ -99,7 +99,7 @@ returns
 
 get user access conditions
 
-  conditions = Ticket.access_condition( User.find(1) )
+  conditions = Ticket.access_condition(User.find(1), 'rw')
 
 returns
 
@@ -107,21 +107,15 @@ returns
 
 =end
 
-  def self.access_condition(user)
+  def self.access_condition(user, type)
     access_condition = []
-    if user.permissions?('ticket.agent')
-      group_ids = Group.select('groups.id').joins(:users)
-                       .where('groups_users.user_id = ?', user.id)
-                       .where('groups.active = ?', true)
-                       .map(&:id)
-      access_condition = [ 'group_id IN (?)', group_ids ]
-    else
-      access_condition = if !user.organization || ( !user.organization.shared || user.organization.shared == false )
-                           [ 'tickets.customer_id = ?', user.id ]
-                         else
-                           [ '(tickets.customer_id = ? OR tickets.organization_id = ?)', user.id, user.organization.id ]
-                         end
-    end
+    access_condition = if user.permissions?('ticket.agent')
+                         ['group_id IN (?)', user.group_ids(type)]
+                       elsif !user.organization || ( !user.organization.shared || user.organization.shared == false )
+                         ['tickets.customer_id = ?', user.id]
+                       else
+                         ['(tickets.customer_id = ? OR tickets.organization_id = ?)', user.id, user.organization.id]
+                       end
     access_condition
   end
 
@@ -381,11 +375,11 @@ returns
 
 get count of tickets and tickets which match on selector
 
-  ticket_count, tickets = Ticket.selectors(params[:condition], limit, current_user)
+  ticket_count, tickets = Ticket.selectors(params[:condition], limit, current_user, 'rw')
 
 =end
 
-  def self.selectors(selectors, limit = 10, current_user = nil)
+  def self.selectors(selectors, limit = 10, current_user = nil, type = nil)
     raise 'no selectors given' if !selectors
     query, bind_params, tables = selector2sql(selectors, current_user)
     return [] if !query
@@ -396,7 +390,7 @@ get count of tickets and tickets which match on selector
       return [ticket_count, tickets]
     end
 
-    access_condition = Ticket.access_condition(current_user)
+    access_condition = Ticket.access_condition(current_user, type)
     ticket_count = Ticket.where(access_condition).where(query, *bind_params).joins(tables).count
     tickets = Ticket.where(access_condition).where(query, *bind_params).joins(tables).limit(limit)
 
