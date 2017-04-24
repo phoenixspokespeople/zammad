@@ -102,6 +102,9 @@ returns
 
   def groups=data
     @group_buffer = {}
+    if data.class == String || data.class == Integer
+      data = [data]
+    end
     if data.class == Array || data.class == Group::ActiveRecord_Relation
       data.each { |item|
         if item.class == String
@@ -156,6 +159,9 @@ returns
 
   def group_ids=data
     @group_buffer = {}
+    if data.class == String || data.class == Integer
+      data = [data]
+    end
     if data.class == Array
       data.each { |group_id|
         @group_buffer[group_id] ||= []
