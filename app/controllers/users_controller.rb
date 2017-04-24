@@ -164,11 +164,11 @@ class UsersController < ApplicationController
       # permission check
       permission_check_by_permission(params)
 
-      if params[:role_ids]
-        user.role_ids = params[:role_ids]
+      if params[:roles] || params[:role_ids]
+        user.associations_from_param({ role_ids: params[:role_ids], roles: params[:roles] })
       end
-      if params[:group_ids]
-        user.group_ids = params[:group_ids]
+      if params[:groups] || params[:group_ids]
+        user.associations_from_param({ group_ids: params[:group_ids], groups: params[:groups] })
       end
     end
 
@@ -260,13 +260,11 @@ class UsersController < ApplicationController
 
       # only allow Admin's
       if current_user.permissions?('admin.user') && (params[:role_ids] || params[:roles])
-        user.role_ids = params[:role_ids]
         user.associations_from_param({ role_ids: params[:role_ids], roles: params[:roles] })
       end
 
       # only allow Admin's
       if current_user.permissions?('admin.user') && (params[:group_ids] || params[:groups])
-        user.group_ids = params[:group_ids]
         user.associations_from_param({ group_ids: params[:group_ids], groups: params[:groups] })
       end
 

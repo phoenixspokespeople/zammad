@@ -169,7 +169,7 @@ returns
       }
       return data
     end
-    raise 'MISSING!'
+    raise "Invalid data structure: #{data.inspect}"
   end
 
 =begin
@@ -891,6 +891,18 @@ returns
     self.preferences = preferences_tmp
     @preferences_default = nil
     true
+  end
+
+  def associations_from_param(params)
+    super(params)
+    if params[:groups]
+      self.groups = params[:groups]
+      save!
+      return
+    end
+    return if !params[:group_ids]
+    self.group_ids = params[:group_ids]
+    save!
   end
 
   private
