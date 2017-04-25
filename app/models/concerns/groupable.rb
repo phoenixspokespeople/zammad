@@ -138,40 +138,27 @@ returns
 =end
 
   def group_ids(type = 'rw')
-    if type
-      return Group.joins(:groups_users)
-                  .where('groups_users.group_id = groups.id')
-                  .where(groups_users: { user_id: id }, groups: { active: true })
-                  .where('(groups_users.permission = ? OR groups_users.permission = ?)', type, 'rw')
-                  .distinct('groups.name')
-                  .order(:id)
-                  .pluck(:id)
-    end
-    result = {}
-    rows = UserGroup
-           .select('permission, group_id')
-           .joins(:group)
-           .where(groups_users: { user_id: id }, groups: { active: true })
-           .order(:group_id)
-           .pluck(:group_id, :permission)
-    rows.each { |row|
-      result[row[0]] ||= []
-      result[row[0]].push row[1]
-    }
-    result
+    Group.joins(:groups_users)
+         .where('groups_users.group_id = groups.id')
+         .where(groups_users: { user_id: id }, groups: { active: true })
+         .where('(groups_users.permission = ? OR groups_users.permission = ?)', type, 'rw')
+         .distinct('groups.name')
+         .order(:id)
+         .pluck(:id)
   end
 
   private
 
   def check_group_buffer
     return if @group_buffer.nil?
-    UserGroup.where(user_id: id).destroy_all
+    model = Kernel.const_get('UserGroup')
+    model.where(user_id: id).destroy_all
     @group_buffer.each { |group_id, permission|
       if permission.class != Array
         permission = [permission]
       end
       permission.each { |item|
-        UserGroup.create!(
+        model.create!(
           user_id: id,
           group_id: group_id,
           permission: item,
