@@ -7,7 +7,7 @@ module Groupable
 
     after_create  :check_group_buffer
     after_update  :check_group_buffer
-    #    after_destroy :group_cleanup
+    #after_destroy :group_cleanup
   end
 
 =begin
@@ -41,12 +41,14 @@ returns
         @group_buffer[item.id] ||= []
         @group_buffer[item.id].push 'rw'
       }
+      check_group_buffer if id
       return true
     end
     data.each { |group_id, permission|
       @group_buffer[group_id] ||= []
       @group_buffer[group_id].push permission
     }
+    check_group_buffer if id
     true
   end
 
@@ -94,6 +96,7 @@ returns
         @group_buffer[group_id] ||= []
         @group_buffer[group_id].push 'rw'
       }
+      check_group_buffer if id
       return data
     end
     data.each { |group_id, permission|
@@ -106,6 +109,7 @@ returns
       end
       @group_buffer[group_id].push permission
     }
+    check_group_buffer if id
     data
     #raise "Invalid data structure: #{data.inspect}"
   end
@@ -134,27 +138,27 @@ returns
 =end
 
   def group_ids(type = 'rw')
-    Group.joins(:groups_users)
-         .where('groups_users.group_id = groups.id')
-         .where(groups_users: { user_id: id }, groups: { active: true })
-         .where('(groups_users.permission = ? OR groups_users.permission = ?)', type, 'rw')
-         .distinct('groups.name')
-         .order(:id)
-         .pluck(:id)
-  end
-
-  def associations_from_param(params)
-    if params[:groups]
-      self.groups = params[:groups]
-      params.delete(:groups)
+    if type
+      return Group.joins(:groups_users)
+                  .where('groups_users.group_id = groups.id')
+                  .where(groups_users: { user_id: id }, groups: { active: true })
+                  .where('(groups_users.permission = ? OR groups_users.permission = ?)', type, 'rw')
+                  .distinct('groups.name')
+                  .order(:id)
+                  .pluck(:id)
     end
-    if params[:group_ids]
-      self.group_ids = params[:group_ids]
-      params.delete(:group_ids)
-    end
-    super(params)
-    return true if !id
-    save!
+    result = {}
+    rows = UserGroup
+           .select('permission, group_id')
+           .joins(:group)
+           .where(groups_users: { user_id: id }, groups: { active: true })
+           .order(:group_id)
+           .pluck(:group_id, :permission)
+    rows.each { |row|
+      result[row[0]] ||= []
+      result[row[0]].push row[1]
+    }
+    result
   end
 
   private
