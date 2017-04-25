@@ -73,6 +73,7 @@ class ObjectCacheTest < ActiveSupport::TestCase
     group1.save
 
     assets = user1.assets({})
+    assert(assets[:Group][group1.id])
     assert_equal(group1.note, assets[:Group][group1.id]['note'])
 
     # update group

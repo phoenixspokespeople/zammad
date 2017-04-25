@@ -152,6 +152,15 @@ class CreateBase < ActiveRecord::Migration
     add_index :groups_users, [:group_id]
     add_index :groups_users, [:permission]
 
+    create_table :groups_roles, id: false do |t|
+      t.integer :role_id
+      t.integer :group_id
+      t.string :permission,       limit: 50, null: false, default: 'rw'
+    end
+    add_index :groups_roles, [:role_id]
+    add_index :groups_roles, [:group_id]
+    add_index :groups_roles, [:permission]
+
     create_table :organizations_users, id: false do |t|
       t.integer :user_id
       t.integer :organization_id

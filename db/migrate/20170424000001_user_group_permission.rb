@@ -9,6 +9,15 @@ class UserGroupPermission < ActiveRecord::Migration
     UserGroup.connection.schema_cache.clear!
     UserGroup.reset_column_information
 
+    create_table :groups_roles, id: false do |t|
+      t.integer :role_id
+      t.integer :group_id
+      t.string :permission,       limit: 50, null: false, default: 'rw'
+    end
+    add_index :groups_roles, [:role_id]
+    add_index :groups_roles, [:group_id]
+    add_index :groups_roles, [:permission]
+
   end
 
 end
