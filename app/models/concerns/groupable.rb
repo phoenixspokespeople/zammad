@@ -153,6 +153,7 @@ returns
       params.delete(:group_ids)
     end
     super(params)
+    return true if !id
     save!
   end
 
