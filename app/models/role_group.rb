@@ -7,4 +7,7 @@ class RoleGroup < ApplicationModel
   belongs_to          :group
   validates           :permission, presence: true
 
+  def self.ref_key
+    :role_id
+  end
 end

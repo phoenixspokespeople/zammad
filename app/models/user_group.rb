@@ -7,4 +7,7 @@ class UserGroup < ApplicationModel
   belongs_to          :group
   validates           :permission, presence: true
 
+  def self.ref_key
+    :user_id
+  end
 end

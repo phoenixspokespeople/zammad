@@ -7,7 +7,7 @@ module Groupable
 
     after_create  :check_group_buffer
     after_update  :check_group_buffer
-    #after_destroy :group_cleanup
+    after_destroy :cleanup_group
   end
 
 =begin
@@ -65,13 +65,28 @@ returns
 
 =end
 
-  def groups(type = 'rw')
-    Group.joins(:groups_users)
-         .where('groups_users.group_id = groups.id')
-         .where(groups_users: { user_id: id }, groups: { active: true })
-         .where('(groups_users.permission = ? OR groups_users.permission = ?)', type, 'rw')
-         .distinct('groups.name')
-         .order(:id)
+  def groups(type = nil)
+    model = Kernel.const_get("#{self.class}Group")
+    if type
+      return Group.joins(model.table_name.to_sym)
+                  .where("#{model.table_name}.group_id = groups.id")
+                  .where(model.table_name => { model.ref_key => id }, groups: { active: true })
+                  .where("(#{model.table_name}.permission = ? OR #{model.table_name}.permission = ?)", type, 'rw')
+                  .distinct('groups.name')
+                  .order(:id)
+    end
+    result = {}
+    rows = model
+           .select('permission, name')
+           .joins(:group)
+           .where(model.table_name => { model.ref_key => id }, groups: { active: true })
+           .order(:group_id)
+           .pluck(:name, :permission)
+    rows.each { |row|
+      result[row[0]] ||= []
+      result[row[0]].push row[1]
+    }
+    result
   end
 
 =begin
@@ -137,21 +152,22 @@ returns
 
 =end
 
-  def group_ids(type = 'rw')
+  def group_ids(type = nil)
+    model = Kernel.const_get("#{self.class}Group")
     if type
-      return Group.joins(:groups_users)
-                  .where('groups_users.group_id = groups.id')
-                  .where(groups_users: { user_id: id }, groups: { active: true })
-                  .where('(groups_users.permission = ? OR groups_users.permission = ?)', type, 'rw')
+      return Group.joins(model.table_name.to_sym)
+                  .where("#{model.table_name}.group_id = groups.id")
+                  .where(model.table_name => { model.ref_key => id }, groups: { active: true })
+                  .where("(#{model.table_name}.permission = ? OR #{model.table_name}.permission = ?)", type, 'rw')
                   .distinct('groups.name')
                   .order(:id)
                   .pluck(:id)
     end
     result = {}
-    rows = UserGroup
+    rows = model
            .select('permission, group_id')
            .joins(:group)
-           .where(groups_users: { user_id: id }, groups: { active: true })
+           .where(model.table_name => { model.ref_key => id }, groups: { active: true })
            .order(:group_id)
            .pluck(:group_id, :permission)
     rows.each { |row|
@@ -165,15 +181,15 @@ returns
 
   def check_group_buffer
     return if @group_buffer.nil?
-    model = Kernel.const_get('UserGroup')
-    model.where(user_id: id).destroy_all
+    model = Kernel.const_get("#{self.class}Group")
+    model.where(model.ref_key => id).destroy_all
     @group_buffer.each { |group_id, permission|
       if permission.class != Array
         permission = [permission]
       end
       permission.each { |item|
         model.create!(
-          user_id: id,
+          model.ref_key => id,
           group_id: group_id,
           permission: item,
         )
@@ -184,4 +200,8 @@ returns
     true
   end
 
+  def cleanup_group
+    model = Kernel.const_get("#{self.class}Group")
+    model.where(model.ref_key => id).destroy_all
+  end
 end

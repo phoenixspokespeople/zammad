@@ -64,21 +64,13 @@ returns
         end
 
         # get groups
-        local_attributes['group_ids'] = []
-        group_ids.each { |group_id|
-          local_attributes['group_ids'].push group_id
-        }
-        local_attributes['group_ids'].each { |group_id|
-          group = Group.lookup(id: group_id)
-          next if !group
-          data = group.assets(data)
-        }
-        #local_attributes['group_ids'] = group_ids
-        #local_attributes['group_ids'].each { |group_id, _permissions|
-        #  group = Group.lookup(id: group_id)
-        #  next if !group
-        #  data = group.assets(data)
-        #}
+        if local_attributes['group_ids']
+          local_attributes['group_ids'].each { |group_id, _permissions|
+            group = Group.lookup(id: group_id)
+            next if !group
+            data = group.assets(data)
+          }
+        end
 
         # get organizations
         if local_attributes['organization_ids']
