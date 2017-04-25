@@ -7,6 +7,7 @@ class Group < ApplicationModel
   include Historisable
 
   has_and_belongs_to_many  :users
+  has_and_belongs_to_many  :roles
   belongs_to               :email_address
   belongs_to               :signature
   validates                :name, presence: true
