@@ -2,9 +2,14 @@
 
 class Role < ApplicationModel
   include LogsActivityStream
+  include Groupable
   include NotifiesClients
   include LatestChangeObserved
 
+  load 'role/assets.rb'
+  include Role::Assets
+
+  has_and_belongs_to_many :groups
   has_and_belongs_to_many :users, after_add: :cache_update, after_remove: :cache_update
   has_and_belongs_to_many :permissions, after_add: :cache_update, after_remove: :cache_update, before_add: :validate_agent_limit
   validates               :name,  presence: true
