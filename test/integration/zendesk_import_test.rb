@@ -138,7 +138,7 @@ class ZendeskImportTest < ActiveSupport::TestCase
         assert_equal(value, user[key], "user.#{key} for user_id #{check[:id]}")
       }
       assert_equal(check[:roles], user.roles.sort.to_a, "#{user.login} roles")
-      assert_equal(check[:groups], user.groups.sort.to_a, "#{user.login} groups")
+      assert_equal(check[:groups], user.groups('rw').sort.to_a, "#{user.login} groups")
     }
   end
 
