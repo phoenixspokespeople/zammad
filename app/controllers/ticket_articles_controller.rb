@@ -15,7 +15,7 @@ class TicketArticlesController < ApplicationController
   # GET /articles/1
   def show
     article = Ticket::Article.find(params[:id])
-    article_permission(article, 'ro')
+    article_permission(article, 'read')
 
     if params[:expand]
       result = article.attributes_with_association_names
@@ -35,7 +35,7 @@ class TicketArticlesController < ApplicationController
   # GET /ticket_articles/by_ticket/1
   def index_by_ticket
     ticket = Ticket.find(params[:id])
-    ticket_permission(ticket, 'ro')
+    ticket_permission(ticket, 'read')
 
     articles = []
 
@@ -82,7 +82,7 @@ class TicketArticlesController < ApplicationController
   # POST /articles
   def create
     ticket = Ticket.find(params[:ticket_id])
-    ticket_permission(ticket, 'rw')
+    ticket_permission(ticket, 'create')
     article = article_create(ticket, params)
 
     if params[:expand]
@@ -103,7 +103,7 @@ class TicketArticlesController < ApplicationController
   # PUT /articles/1
   def update
     article = Ticket::Article.find(params[:id])
-    article_permission(article, 'rw')
+    article_permission(article, 'edit')
 
     if !current_user.permissions?('ticket.agent') && !current_user.permissions?('admin')
       raise Exceptions::NotAuthorized, 'Not authorized (ticket.agent or admin permission required)!'
@@ -132,7 +132,7 @@ class TicketArticlesController < ApplicationController
   # DELETE /articles/1
   def destroy
     article = Ticket::Article.find(params[:id])
-    article_permission(article, 'rw')
+    article_permission(article, 'destroy')
 
     if current_user.permissions?('admin')
       article.destroy!
@@ -209,7 +209,7 @@ class TicketArticlesController < ApplicationController
   # GET /ticket_attachment/:ticket_id/:article_id/:id
   def attachment
     ticket = Ticket.lookup(id: params[:ticket_id])
-    if !ticket_permission(ticket, 'ro')
+    if !ticket_permission(ticket, 'read')
       raise Exceptions::NotAuthorized, 'No such ticket.'
     end
     article = Ticket::Article.find(params[:article_id])
@@ -221,7 +221,7 @@ class TicketArticlesController < ApplicationController
       end
 
       ticket = article.ticket
-      if !ticket_permission(ticket, 'ro')
+      if !ticket_permission(ticket, 'read')
         raise Exceptions::NotAuthorized, "No access, for ticket_id '#{ticket.id}'."
       end
     end
@@ -251,7 +251,7 @@ class TicketArticlesController < ApplicationController
   # GET /ticket_article_plain/1
   def article_plain
     article = Ticket::Article.find(params[:id])
-    article_permission(article, 'ro')
+    article_permission(article, 'read')
 
     file = article.as_raw
 

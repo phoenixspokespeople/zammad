@@ -64,6 +64,11 @@ class App.UiElement.user_permission
     roles = _.indexBy(roles, 'name')
     roles = _.sortBy(roles, (i) -> return i.name)
 
+    groupRights =
+      read: 'Read'
+      create: 'Create'
+      edit: 'Edit'
+      all: 'All'
     item = $( App.view('generic/user_permission')(
       attribute: attribute
       roles: roles
@@ -72,6 +77,7 @@ class App.UiElement.user_permission
       rolesSelected: rolesSelected
       groupsSelected: groupsSelected
       hideGroups: hideGroups
+      groupRights: groupRights
     ) )
 
     # if customer, remove admin and agent

@@ -61,7 +61,7 @@ RSpec.describe Import::OTRS::User do
     ]
     allow(Import::OTRS::Requester).to receive(:load).with('Group').and_return(group_list)
 
-    role_list = [{ 'ID' => '3', 'GroupIDs' => { '2' => ['rw'], '3' => ['rw'] } }]
+    role_list = [{ 'ID' => '3', 'GroupIDs' => { '2' => ['all'], '3' => ['all'] } }]
     allow(Import::OTRS::Requester).to receive(:load).with('Role').and_return(role_list)
   end
 

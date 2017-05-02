@@ -8,7 +8,7 @@ class Stats::TicketChannelDistribution
     time_range = 7.days
 
     # get users groups
-    group_ids = user.group_ids_all('rw')
+    group_ids = user.group_ids_all('all')
 
     # get channels
     channels = [

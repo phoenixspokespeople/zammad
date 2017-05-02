@@ -146,7 +146,7 @@ class CreateBase < ActiveRecord::Migration
     create_table :groups_users, id: false do |t|
       t.integer :user_id
       t.integer :group_id
-      t.string :permission,       limit: 50, null: false, default: 'rw'
+      t.string :permission,       limit: 50, null: false, default: 'all'
     end
     add_index :groups_users, [:user_id]
     add_index :groups_users, [:group_id]
@@ -155,7 +155,7 @@ class CreateBase < ActiveRecord::Migration
     create_table :groups_roles, id: false do |t|
       t.integer :role_id
       t.integer :group_id
-      t.string :permission,       limit: 50, null: false, default: 'rw'
+      t.string :permission,       limit: 50, null: false, default: 'all'
     end
     add_index :groups_roles, [:role_id]
     add_index :groups_roles, [:group_id]

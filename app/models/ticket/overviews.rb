@@ -89,7 +89,7 @@ returns
     return [] if overviews.blank?
 
     # get only tickets with permissions
-    access_condition = Ticket.access_condition(user, 'rw')
+    access_condition = Ticket.access_condition(user, 'all')
 
     ticket_attributes = Ticket.new.attributes
     list = []

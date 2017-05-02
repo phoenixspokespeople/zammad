@@ -105,7 +105,7 @@ returns
       query_extention['bool']['must'] = []
 
       if current_user.permissions?('ticket.agent')
-        group_ids = current_user.group_ids('ro')
+        group_ids = current_user.group_ids_all('read')
         access_condition = {
           'query_string' => { 'default_field' => 'group_id', 'query' => "\"#{group_ids.join('" OR "')}\"" }
         }
@@ -145,7 +145,7 @@ returns
     end
 
     # fallback do sql query
-    access_condition = Ticket.access_condition(current_user, 'ro')
+    access_condition = Ticket.access_condition(current_user, 'read')
 
     # do query
     # - stip out * we already search for *query* -

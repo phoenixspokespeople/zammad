@@ -10,6 +10,7 @@ list attributes
     article_id: 123,
 
     ticket: ticket_model,
+    current_user: User.find(123),
   )
 
 returns
@@ -26,6 +27,8 @@ returns
 =end
 
   def self.attributes_to_change(params)
+    raise 'current_user param needed' if !params[:current_user]
+
     if params[:ticket_id]
       params[:ticket] = Ticket.find(params[:ticket_id])
     end
@@ -85,10 +88,14 @@ returns
     }
 
     dependencies = { group_id: { '' => { owner_id: [] } } }
-    Group.where(active: true).each { |group|
+
+    filter[:group_id] = []
+    params[:current_user].group_ids_all('create').each { |group_id|
+      filter[:group_id].push group_id
+      group = Group.find(group_id)
       assets = group.assets(assets)
       dependencies[:group_id][group.id] = { owner_id: [] }
-      group.users('rw').each { |user|
+      group.users('all').each { |user|
         next if !agents[ user.id ]
         assets = user.assets(assets)
         dependencies[:group_id][ group.id ][ :owner_id ].push user.id

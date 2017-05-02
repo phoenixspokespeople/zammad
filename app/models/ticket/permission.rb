@@ -6,7 +6,7 @@ module Ticket::Permission
 check if user has access to ticket
 
   ticket = Ticket.find(123)
-  result = ticket.permission(current_user: User.find(123), type: 'rw')
+  result = ticket.permission(current_user: User.find(123), type: 'all')
 
 returns
 
@@ -37,8 +37,8 @@ returns
     return true if owner_id == data[:current_user].id
 
     # access if requestor is in group
-    data[:current_user].groups(data[:type]).each { |group|
-      return true if self.group.id == group.id
+    data[:current_user].group_ids_all(data[:type]).each { |group_id|
+      return true if group.id == group_id
     }
     false
   end

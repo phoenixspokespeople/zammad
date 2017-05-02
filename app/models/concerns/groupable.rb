@@ -16,9 +16,9 @@ set groups of user
 
   user = User.find(123)
   success = user.groups = [
-    1: 'rw',
-    2: 'ro',
-    3: ['ro', 'note'],
+    1: 'all',
+    2: 'read',
+    3: ['read', 'edit'],
   ]
 
 returns
@@ -39,7 +39,7 @@ returns
         end
         raise 'Only Group is accepted for groups param.' if item.class != Group
         @group_buffer[item.id] ||= []
-        @group_buffer[item.id].push 'rw'
+        @group_buffer[item.id].push 'all'
       }
       check_group_buffer if id
       return true
@@ -71,7 +71,7 @@ returns
       return Group.joins(model.table_name.to_sym)
                   .where("#{model.table_name}.group_id = groups.id")
                   .where(model.table_name => { model.ref_key => id }, groups: { active: true })
-                  .where("(#{model.table_name}.permission = ? OR #{model.table_name}.permission = ?)", type, 'rw')
+                  .where("(#{model.table_name}.permission = ? OR #{model.table_name}.permission = ?)", type, 'all')
                   .distinct('groups.name')
                   .order(:id)
     end
@@ -109,7 +109,7 @@ returns
     if data.class == Array
       data.each { |group_id|
         @group_buffer[group_id] ||= []
-        @group_buffer[group_id].push 'rw'
+        @group_buffer[group_id].push 'all'
       }
       check_group_buffer if id
       return data
@@ -134,7 +134,7 @@ returns
 get group_ids of user
 
   user = User.find(123)
-  success = user.group_ids('rw')
+  success = user.group_ids('all')
 
 returns
 
@@ -146,8 +146,8 @@ returns
 returns
 
   {
-    1: 'ro',
-    2: ['rw', 'note'],
+    1: 'read',
+    2: ['all', 'edit'],
   }
 
 =end
@@ -158,7 +158,7 @@ returns
       return Group.joins(model.table_name.to_sym)
                   .where("#{model.table_name}.group_id = groups.id")
                   .where(model.table_name => { model.ref_key => id }, groups: { active: true })
-                  .where("(#{model.table_name}.permission = ? OR #{model.table_name}.permission = ?)", type, 'rw')
+                  .where("(#{model.table_name}.permission = ? OR #{model.table_name}.permission = ?)", type, 'all')
                   .distinct('groups.name')
                   .order(:id)
                   .pluck(:id)

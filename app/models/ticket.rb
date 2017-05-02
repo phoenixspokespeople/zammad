@@ -99,7 +99,7 @@ returns
 
 get user access conditions
 
-  conditions = Ticket.access_condition(User.find(1), 'rw')
+  conditions = Ticket.access_condition(User.find(1), 'all')
 
 returns
 
@@ -110,7 +110,7 @@ returns
   def self.access_condition(user, type)
     access_condition = []
     access_condition = if user.permissions?('ticket.agent')
-                         ['group_id IN (?)', user.group_ids(type)]
+                         ['group_id IN (?)', user.group_ids_all(type)]
                        elsif !user.organization || ( !user.organization.shared || user.organization.shared == false )
                          ['tickets.customer_id = ?', user.id]
                        else
@@ -385,11 +385,11 @@ returns
 
 get count of tickets and tickets which match on selector
 
-  ticket_count, tickets = Ticket.selectors(params[:condition], limit, current_user, 'rw')
+  ticket_count, tickets = Ticket.selectors(params[:condition], limit, current_user, 'all')
 
 =end
 
-  def self.selectors(selectors, limit = 10, current_user = nil, type = 'rw')
+  def self.selectors(selectors, limit = 10, current_user = nil, type = 'all')
     raise 'no selectors given' if !selectors
     query, bind_params, tables = selector2sql(selectors, current_user)
     return [] if !query

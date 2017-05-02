@@ -483,14 +483,22 @@ returns
     User.joins(:users_roles).where("(#{condition}) AND users.active = ?", *total_role_ids, true).distinct.order(:id)
   end
 
-  def groups_all(type)
-    if type
-      user_groups = groups(type)
-      Role.joins(:users).where(roles: { active: true }, roles_users: { user_id: id }).each { |role|
-        user_groups = user_groups.concat(role.groups(type))
+  def group_ids_all(type)
+    user_group_ids = group_ids(type)
+    #role_group_ids = Group.joins(:groups_roles).joins(:users)
+    #            .where("groups_roles.group_id = groups.id")
+    #            .where(:users => { id: id }, groups: { active: true })
+    #            .where("(groups_roles.permission = ? OR groups_roles.permission = ?)", type, 'all')
+    #            .distinct('groups.name')
+    #            .order(:id)
+    #            .pluck('groups.id')
+    #user_group_ids.concat(role_group_ids).uniq
+    roles.each { |role|
+      role.group_ids(type).each { |group_id|
+        user_group_ids.push group_id
       }
-      return user_groups
-    end
+    }
+    user_group_ids.uniq
   end
 
 =begin
