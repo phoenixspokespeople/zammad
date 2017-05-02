@@ -7,7 +7,7 @@ class Stats::TicketEscalation
     open_state_ids = Ticket::State.by_category(:open).pluck(:id)
 
     # get users groups
-    group_ids = user.groups('rw').map(&:id)
+    group_ids = user.group_ids_all('rw')
 
     # owned tickets
     own_escalated = Ticket.where(
