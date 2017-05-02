@@ -389,7 +389,7 @@ get count of tickets and tickets which match on selector
 
 =end
 
-  def self.selectors(selectors, limit = 10, current_user = nil, type = nil)
+  def self.selectors(selectors, limit = 10, current_user = nil, type = 'rw')
     raise 'no selectors given' if !selectors
     query, bind_params, tables = selector2sql(selectors, current_user)
     return [] if !query

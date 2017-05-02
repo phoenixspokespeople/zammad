@@ -483,6 +483,16 @@ returns
     User.joins(:users_roles).where("(#{condition}) AND users.active = ?", *total_role_ids, true).distinct.order(:id)
   end
 
+  def groups_all(type)
+    if type
+      user_groups = groups(type)
+      Role.joins(:users).where(roles: { active: true }, roles_users: { user_id: id }).each { |role|
+        user_groups = user_groups.concat(role.groups(type))
+      }
+      return user_groups
+    end
+  end
+
 =begin
 
 generate new token for reset password
