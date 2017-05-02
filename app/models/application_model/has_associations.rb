@@ -24,8 +24,11 @@ returns
       real_ids = real_ids.to_sym
       next if !params.key?(real_ids)
       list_of_items = params[real_ids]
-      if !params[real_ids].instance_of?(Array)
-        list_of_items = [ params[real_ids] ]
+      if list_of_items.class == Hash || list_of_items.class == ActiveSupport::HashWithIndifferentAccess || list_of_items.class == ActionController::Parameters
+        send("#{real_ids}=", list_of_items)
+        next
+      elsif list_of_items.class != Array
+        list_of_items = [ list_of_items ]
       end
       list = []
       list_of_items.each { |item_id|
@@ -133,7 +136,13 @@ returns
       next if !respond_to?(assoc.name)
       ref = send(assoc.name)
       next if !ref
-      if ref.respond_to?(:first)
+      if ref.class == Hash || ref.class == ActiveSupport::HashWithIndifferentAccess
+        attributes[assoc.name.to_s] = {}
+        ref.each { |local_id, value|
+          attributes[assoc.name.to_s][local_id] ||= {}
+          attributes[assoc.name.to_s][local_id] = value
+        }
+      elsif ref.respond_to?(:first)
         attributes[assoc.name.to_s] = []
         ref.each { |item|
           if item[:login]
