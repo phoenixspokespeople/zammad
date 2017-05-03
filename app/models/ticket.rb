@@ -85,14 +85,17 @@ returns
 =end
 
   def agent_of_group
-    roles = Role.with_permissions('ticket.agent')
-    role_ids = roles.map(&:id)
-    Group.find(group_id)
-         .users.where(active: true)
-         .joins(:roles)
-         .where('roles.id' => role_ids, 'roles.active' => true)
-         .order('users.login')
-         .uniq()
+    user_ids = UserGroup.joins(:user).where(group_id: group_id, users: { active: true }, permission: 'all').pluck('users.id')
+    role_ids = RoleGroup.joins(:role).where(group_id: group_id, roles: { active: true }, permission: 'all').pluck('roles.id')
+    role_ids.each { |role_id|
+      role = Role.find(role_id)
+      user_ids = user_ids.concat(role.user_ids)
+    }
+    users = []
+    user_ids.uniq.sort.each { |user_id|
+      users.push User.find(user_id)
+    }
+    users
   end
 
 =begin
