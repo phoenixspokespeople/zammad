@@ -242,31 +242,52 @@ class SessionBasicTest < ActiveSupport::TestCase
 
   test 'c ticket_create' do
 
-    UserInfo.current_user_id = 2
-    user = User.lookup(id: 1)
-    ticket_create_client1 = Sessions::Backend::TicketCreate.new(user, {}, false, '123-1', 3)
+    # create users
+    roles  = Role.where(name: ['Agent'])
+    groups = Group.all
+
+    UserInfo.current_user_id = 1
+    agent1 = User.create_or_update(
+      login: 'session-agent-1',
+      firstname: 'Session',
+      lastname: 'Agent 1',
+      email: 'session-agent-1@example.com',
+      password: 'agentpw',
+      active: true,
+      roles: roles,
+      groups: groups,
+    )
+    agent1.save!
+
+    ticket_create_client1 = Sessions::Backend::TicketCreate.new(agent1, {}, false, '123-1', 3)
 
     # get as stream
     result1 = ticket_create_client1.push
     assert(result1, 'check ticket_create')
-    sleep 0.6
+    travel 1.second
 
     # next check should be empty
     result1 = ticket_create_client1.push
     assert(!result1, 'check ticket_create - recall')
 
     # next check should be empty
-    sleep 0.6
+    travel 1.second
     result1 = ticket_create_client1.push
     assert(!result1, 'check ticket_create - recall 2')
 
-    Group.create(name: "SomeTicketCreateGroup::#{rand(999_999)}", active: true)
+    group = Group.create(name: "SomeTicketCreateGroup::#{rand(999_999)}", active: true)
+    agent1.groups = Group.all
+    agent1.save!
+
+    # next check should be empty
+    result1 = ticket_create_client1.push
 
     travel 4.seconds
 
     # get as stream
     result1 = ticket_create_client1.push
     assert(result1, 'check ticket_create - recall 3')
+
     travel_back
   end
 
