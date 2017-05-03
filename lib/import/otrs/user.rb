@@ -91,7 +91,7 @@ module Import
           permissions = user['GroupIDs'][ queue['GroupID'] ]
 
           next if !permissions
-          next if !permissions.include?('all')
+          next if !permissions.include?('rw')
 
           result.push queue['QueueID']
         }
@@ -142,12 +142,12 @@ module Import
 
         return result if !permissions
 
-        if group['Name'] == 'admin' && permissions.include?('all')
+        if group['Name'] == 'admin' && permissions.include?('rw')
           result.push 'Admin'
         end
 
         return result if group['Name'] !~ /^(stats|report)/
-        return result if !( permissions.include?('read') || permissions.include?('all') )
+        return result if !( permissions.include?('ro') || permissions.include?('rw') )
 
         result.push 'Report'
         result
