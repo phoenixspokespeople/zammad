@@ -20,6 +20,7 @@ class App.UiElement.permission extends App.UiElement.ApplicationUiElement
       read: 'Read'
       create: 'Create'
       edit: 'Edit'
+      overview: 'Overview'
       all: 'All'
     item = $( App.view('generic/permission')(
       attribute: attribute

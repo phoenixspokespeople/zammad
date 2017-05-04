@@ -66,6 +66,7 @@ class App.UiElement.user_permission
 
     groupRights =
       read: 'Read'
+      overview: 'Overview'
       create: 'Create'
       edit: 'Edit'
       all: 'All'
