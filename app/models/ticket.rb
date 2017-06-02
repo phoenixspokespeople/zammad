@@ -1,12 +1,15 @@
 # Copyright (C) 2012-2016 Zammad Foundation, http://zammad-foundation.org/
 
 class Ticket < ApplicationModel
-  include LogsActivityStream
-  include NotifiesClients
-  include LatestChangeObserved
-  include Historisable
-  include Taggable
-  include SearchIndexed
+  include HasActivityStreamLog
+  include ChecksClientNotification
+  include ChecksLatestChangeObserved
+  include HasHistory
+  include HasTags
+  include HasSearchIndexBackend
+  include HasOnlineNotifications
+  include HasKarmaActivityLog
+  include HasLinks
 
   include Ticket::Escalation
   include Ticket::Subject
@@ -23,7 +26,6 @@ class Ticket < ApplicationModel
   after_create   :check_escalation_update
   before_update  :check_defaults, :check_title, :reset_pending_time
   after_update   :check_escalation_update
-  before_destroy :destroy_dependencies
 
   validates :group_id, presence: true
 
@@ -55,7 +57,7 @@ class Ticket < ApplicationModel
                              :preferences
 
   belongs_to    :group,                  class_name: 'Group'
-  has_many      :articles,               class_name: 'Ticket::Article', after_add: :cache_update, after_remove: :cache_update
+  has_many      :articles,               class_name: 'Ticket::Article', after_add: :cache_update, after_remove: :cache_update, dependent: :destroy
   has_many      :ticket_time_accounting, class_name: 'Ticket::TimeAccounting', dependent: :destroy
   belongs_to    :organization,           class_name: 'Organization'
   belongs_to    :state,                  class_name: 'Ticket::State'
@@ -745,6 +747,19 @@ perform changes on ticket
 
   def perform_changes(perform, perform_origin, item = nil, current_user_id = nil)
     logger.debug "Perform #{perform_origin} #{perform.inspect} on Ticket.find(#{id})"
+
+    # if the configuration contains the deletion of the ticket then
+    # we skip all other ticket changes because they does not matter
+    if perform['ticket.action'].present? && perform['ticket.action']['value'] == 'delete'
+      perform.each do |key, _value|
+        (object_name, attribute) = key.split('.', 2)
+        next if object_name != 'ticket'
+        next if attribute == 'action'
+
+        perform.delete(key)
+      end
+    end
+
     changed = false
     perform.each do |key, value|
       (object_name, attribute) = key.split('.', 2)
@@ -795,6 +810,19 @@ perform changes on ticket
         recipients_checked = []
         recipients_raw.each { |recipient_email|
 
+          skip_user = false
+          users = User.where(email: recipient_email)
+          users.each { |user|
+            next if user.preferences[:mail_delivery_failed] != true
+            next if !user.preferences[:mail_delivery_failed_data]
+            till_blocked = ((user.preferences[:mail_delivery_failed_data] - Time.zone.now - 60.days) / 60 / 60 / 24).round
+            next if till_blocked.positive?
+            logger.info "Send no trigger based notification to #{recipient_email} because email is marked as mail_delivery_failed for #{till_blocked} days"
+            skip_user = true
+            break
+          }
+          next if skip_user
+
           # send notifications only to email adresses
           next if !recipient_email
           next if recipient_email !~ /@/
@@ -820,10 +848,47 @@ perform changes on ticket
           if item && item[:article_id]
             article = Ticket::Article.lookup(id: item[:article_id])
             if article && article.preferences['is-auto-response'] == true && article.from && article.from =~ /#{Regexp.quote(recipient_email)}/i
-              logger.info "Send not trigger based notification to #{recipient_email} because of auto response tagged incoming email"
+              logger.info "Send no trigger based notification to #{recipient_email} because of auto response tagged incoming email"
               next
             end
           end
+
+          # loop protection / check if maximal count of trigger mail has reached
+          map = {
+            30 => 15,
+            60 => 25,
+            180 => 50,
+          }
+          skip = false
+          map.each { |minutes, count|
+            already_sent = Ticket::Article.where(
+              ticket_id: id,
+              sender: Ticket::Article::Sender.find_by(name: 'System'),
+              type: Ticket::Article::Type.find_by(name: 'email'),
+            ).where("ticket_articles.created_at > ? AND ticket_articles.to LIKE '%#{recipient_email.strip}%'", Time.zone.now - minutes.minutes).count
+            next if already_sent < count
+            logger.info "Send no trigger based notification to #{recipient_email} because already sent #{count} for this ticket within last #{minutes} minutes (loop protection)"
+            skip = true
+            break
+          }
+          next if skip
+          map = {
+            1 => 150,
+            3 => 250,
+            6 => 450,
+          }
+          skip = false
+          map.each { |hours, count|
+            already_sent = Ticket::Article.where(
+              sender: Ticket::Article::Sender.find_by(name: 'System'),
+              type: Ticket::Article::Type.find_by(name: 'email'),
+            ).where("ticket_articles.created_at > ? AND ticket_articles.to LIKE '%#{recipient_email.strip}%'", Time.zone.now - hours.hours).count
+            next if already_sent < count
+            logger.info "Send no trigger based notification to #{recipient_email} because already sent #{count} in total within last #{hours} hour(s) (loop protection)"
+            skip = true
+            break
+          }
+          next if skip
 
           email = recipient_email.downcase.strip
           next if recipients_checked.include?(email)
@@ -900,6 +965,16 @@ perform changes on ticket
         else
           logger.error "Unknown #{attribute} operator #{value['operator']}"
         end
+        next
+      end
+
+      # delete ticket
+      if key == 'ticket.action'
+        next if value['value'].blank?
+        next if value['value'] != 'delete'
+
+        destroy
+
         next
       end
 
@@ -1041,15 +1116,6 @@ result
   def check_escalation_update
     escalation_calculation
     true
-  end
-
-  def destroy_dependencies
-
-    # delete articles
-    articles.destroy_all
-
-    # destroy online notifications
-    OnlineNotification.remove(self.class.to_s, id)
   end
 
   def set_default_state

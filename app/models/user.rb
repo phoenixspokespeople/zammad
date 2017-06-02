@@ -24,11 +24,11 @@ require 'digest/md5'
 # @property active          [Boolean] The flag that shows the active state of the User.
 # @property note            [String]  The note or comment stored to the User.
 class User < ApplicationModel
-  include LogsActivityStream
-  include NotifiesClients
-  include Historisable
   include Groupable
-  include SearchIndexed
+  include HasActivityStreamLog
+  include ChecksClientNotification
+  include HasHistory
+  include HasSearchIndexBackend
 
   load 'user/permission.rb'
   include User::Permission
@@ -999,7 +999,6 @@ raise 'Minimum one user need to have admin permissions'
 
   def ensure_password
     return if password_empty?
-    return if Setting.get('import_mode')
     return if PasswordHash.crypted?(password)
     self.password = PasswordHash.crypt(password)
   end

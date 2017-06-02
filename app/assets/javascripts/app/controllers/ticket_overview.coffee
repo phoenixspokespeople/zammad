@@ -120,9 +120,18 @@ class App.TicketOverview extends App.Controller
       options:
         duration: 200
         complete: =>
+          if !@hoveredBatchEntry
+            @cleanUpDrag()
+            return
+
           @hoveredBatchEntry.velocity 'reverse',
             duration: 200
             complete: =>
+
+              if !@hoveredBatchEntry
+                @cleanUpDrag()
+                return
+
               # clean scale
               action = @hoveredBatchEntry.attr('data-action')
               id = @hoveredBatchEntry.attr('data-id')
@@ -537,7 +546,7 @@ class App.TicketOverview extends App.Controller
       vertical: true
 
     @navBarController = new Navbar
-      el:   elLocal.first()
+      el:   elLocal.filter('.sidebar')
       view: @view
 
     @contentController = new Table
@@ -841,6 +850,20 @@ class Navbar extends App.Controller
 
   render: (data) =>
     return if !data
+    content = @el.closest('.content')
+    if _.isArray(data) && _.isEmpty(data)
+      content.find('.sidebar').addClass('hide')
+      content.find('.main').addClass('hide')
+      content.find('.js-error').removeClass('hide')
+      @renderScreenError(
+        el: @el.closest('.content').find('.js-error')
+        detail:     'Currently no overview is assigned to your roles. Please contact your administrator.'
+        objectName: 'Ticket'
+      )
+      return
+    content.find('.sidebar').removeClass('hide')
+    content.find('.main').removeClass('hide')
+    content.find('.js-error').addClass('hide')
 
     # do not show vertical navigation if only one tab exists
     if @vertical
@@ -917,6 +940,8 @@ class Table extends App.Controller
     # use cache
     overview = data.overview
     tickets  = data.tickets
+
+    return if !overview && !tickets
 
     # get ticket list
     ticketListShow = []

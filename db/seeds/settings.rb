@@ -1658,6 +1658,33 @@ Setting.create_if_not_exists(
 )
 
 Setting.create_if_not_exists(
+  title: 'Sender based on Reply-To header',
+  name: 'postmaster_sender_based_on_reply_to',
+  area: 'Email::Base',
+  description: 'Set/overwrite sender/from of email based on reply-to header. Useful to set correct customer if email is received from a third party system on behalf of a customer.',
+  options: {
+    form: [
+      {
+        display: '',
+        null: true,
+        name: 'postmaster_sender_based_on_reply_to',
+        tag: 'select',
+        options: {
+          ''                                     => '-',
+          'as_sender_of_email'                   => 'Take reply-to header as sender/from of email.',
+          'as_sender_of_email_use_from_realname' => 'Take reply-to header as sender/from of email and use realname of origin from.',
+        },
+      },
+    ],
+  },
+  state: [],
+  preferences: {
+    permission: ['admin.channel_email'],
+  },
+  frontend: false
+)
+
+Setting.create_if_not_exists(
   title: 'Notification Sender',
   name: 'notification_sender',
   area: 'Email::Base',
@@ -2219,6 +2246,15 @@ Setting.create_if_not_exists(
 )
 Setting.create_if_not_exists(
   title: 'Defines postmaster filter.',
+  name: '0011_postmaster_sender_based_on_reply_to',
+  area: 'Postmaster::PreFilter',
+  description: 'Defines postmaster filter to set the sender/from of emails based on reply-to header.',
+  options: {},
+  state: 'Channel::Filter::ReplyToBasedSender',
+  frontend: false
+)
+Setting.create_if_not_exists(
+  title: 'Defines postmaster filter.',
   name: '0012_postmaster_filter_sender_is_system_address',
   area: 'Postmaster::PreFilter',
   description: 'Defines postmaster filter to check if email has been created by Zammad itself and will set the article sender.',
@@ -2273,6 +2309,15 @@ Setting.create_if_not_exists(
 )
 Setting.create_if_not_exists(
   title: 'Defines postmaster filter.',
+  name: '0110_postmaster_filter_follow_up_merged',
+  area: 'Postmaster::PreFilter',
+  description: 'Defines postmaster filter to identify follow-up ticket for merged tickets.',
+  options: {},
+  state: 'Channel::Filter::FollowUpMerged',
+  frontend: false
+)
+Setting.create_if_not_exists(
+  title: 'Defines postmaster filter.',
   name: '0200_postmaster_filter_follow_up_possible_check',
   area: 'Postmaster::PreFilter',
   description: 'Define postmaster filter to check if follow ups get created (based on admin settings).',
@@ -2282,11 +2327,20 @@ Setting.create_if_not_exists(
 )
 Setting.create_if_not_exists(
   title: 'Defines postmaster filter.',
-  name: '0900_postmaster_filter_bounce_check',
+  name: '0900_postmaster_filter_bounce_follow_up_check',
   area: 'Postmaster::PreFilter',
   description: 'Defines postmaster filter to identify postmaster bounced - to handle it as follow-up of the original ticket.',
   options: {},
-  state: 'Channel::Filter::BounceCheck',
+  state: 'Channel::Filter::BounceFollowUpCheck',
+  frontend: false
+)
+Setting.create_if_not_exists(
+  title: 'Defines postmaster filter.',
+  name: '0950_postmaster_filter_bounce_delivery_permanent_failed',
+  area: 'Postmaster::PreFilter',
+  description: 'Defines postmaster filter to identify postmaster bounced - disable sending notification on permanent deleivery failed.',
+  options: {},
+  state: 'Channel::Filter::BounceDeliveryPermanentFailed',
   frontend: false
 )
 Setting.create_if_not_exists(

@@ -16,15 +16,24 @@ module Import
         @config = config
         @ldap   = ldap
 
-        user_roles      = user_roles(ldap: @ldap, config: config)
-        signup_role_ids = Role.signup_role_ids.sort
+        user_roles = user_roles(ldap: @ldap, config: config)
+
+        if config[:unassigned_users].blank? || config[:unassigned_users] == 'sigup_roles'
+          signup_role_ids = Role.signup_role_ids.sort
+        end
 
         @dry_run = kargs[:dry_run]
         pre_import_hook([], config, user_roles, signup_role_ids, kargs)
 
         import_job       = kargs[:import_job]
         import_job_count = 0
-        @ldap.search(config[:user_filter]) do |entry|
+
+        # limit the fetched attributes for an entry to only
+        # those which are needed to improve the performance
+        relevant_attributes = config[:user_attributes].keys
+        relevant_attributes.push('dn')
+
+        @ldap.search(config[:user_filter], attributes: relevant_attributes) do |entry|
           backend_instance = create_instance(entry, config, user_roles, signup_role_ids, kargs)
           post_import_hook(entry, backend_instance, config, user_roles, signup_role_ids, kargs)
 
@@ -42,18 +51,21 @@ module Import
 
       def self.pre_import_hook(_records, *_args)
         super
+        add_sum_to_statistics
+      end
 
-        #cache_key = "#{@ldap.host}::#{@ldap.port}::#{@ldap.ssl}::#{@ldap.base_dn}"
-        #if !@dry_run
-        #  sum = Cache.get(cache_key)
-        #end
+      def self.add_sum_to_statistics
+        cache_key = "#{@ldap.host}::#{@ldap.port}::#{@ldap.ssl}::#{@ldap.base_dn}::#{@config[:user_filter]}"
+        if !@dry_run
+          sum = Cache.get(cache_key)
+        end
 
         sum ||= @ldap.count(@config[:user_filter])
 
         @statistics[:sum] = sum
 
         return if !@dry_run
-        #Cache.write(cache_key, sum, { expires_in: 1.hour })
+        Cache.write(cache_key, sum, { expires_in: 1.hour })
       end
 
       def self.add_to_statistics(backend_instance)

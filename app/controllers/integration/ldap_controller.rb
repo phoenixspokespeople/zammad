@@ -14,12 +14,21 @@ class Integration::LdapController < ApplicationController
       attributes: ldap.preferences,
     }
   rescue => e
-    logger.error e
+    # workaround for issue #1114
+    if e.message.end_with?(', 48, Inappropriate Authentication')
+      result = {
+        result:     'ok',
+        attributes: {},
+      }
+    else
+      logger.error e
+      result = {
+        result:  'failed',
+        message: e.message,
+      }
+    end
 
-    render json: {
-      result:  'failed',
-      message: e.message,
-    }
+    render json: result
   end
 
   def bind
@@ -71,8 +80,11 @@ class Integration::LdapController < ApplicationController
   end
 
   def job_start_create
-    job = ImportJob.create(name: 'Import::Ldap', payload: Setting.get('ldap_config'))
-    job.delay.start
+    backend = 'Import::Ldap'
+    if !ImportJob.exists?(name: backend, finished_at: nil)
+      job = ImportJob.create(name: backend, payload: Setting.get('ldap_config'))
+      job.delay.start
+    end
     render json: {
       result: 'ok',
     }

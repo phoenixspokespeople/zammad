@@ -1,17 +1,53 @@
+# Copyright (C) 2012-2016 Zammad Foundation, http://zammad-foundation.org/
+
 require 'ldap'
 require 'ldap/group'
 
 module Import
-  class Ldap
+  class Ldap < Import::Base
 
-    def initialize(import_job)
-      @import_job = import_job
+    # Checks if the integration is activated and configured.
+    # Otherwise it won't get queued since it will display
+    # an error which is confusing and wrong.
+    #
+    # @example
+    #  Import::LDAP.queueable?
+    #  #=> true
+    #
+    # return [Boolean]
+    def self.queueable?
+      Setting.get('ldap_integration') && Setting.get('ldap_config').present?
+    end
 
-      if !Setting.get('ldap_integration') && !@import_job.dry_run
-        raise "LDAP integration deactivated, check Setting 'ldap_integration'."
-      end
-
+    # Starts a live or dry run LDAP import.
+    #
+    # @example
+    #  instance = Import::LDAP.new(import_job)
+    #
+    # @raise [RuntimeError] Raised if an import should start but the ldap integration is disabled
+    #
+    # return [nil]
+    def start
+      return if !requirements_completed?
       start_import
+    end
+
+    # Gets called when the Scheduler gets (re-)started and a LDAP ImportJob was still
+    # in the queue. The job will always get restarted to avoid the gap till the next
+    # run triggered by the Scheduler. The result will get updated to inform the user
+    # in the agent interface result view.
+    #
+    # @example
+    #  instance = Import::LDAP.new(import_job)
+    #  instance.reschedule?(delayed_job)
+    #  #=> true
+    #
+    # return [true]
+    def reschedule?(_delayed_job)
+      @import_job.update_attribute(:result, {
+                                     info: 'Restarting due to scheduler restart.'
+                                   })
+      true
     end
 
     private
@@ -26,6 +62,24 @@ module Import
       )
 
       @import_job.result = Import::Ldap::UserFactory.statistics
+    end
+
+    def requirements_completed?
+      return true if @import_job.dry_run
+
+      if !Setting.get('ldap_integration')
+        message = 'Sync cancelled. LDAP integration deactivated. Activate via the switch.'
+      elsif Setting.get('ldap_config').blank? && @import_job.payload.blank?
+        message = 'Sync cancelled. LDAP configration or ImportJob payload missing.'
+      end
+
+      return true if !message
+
+      @import_job.update_attribute(:result, {
+                                     info: message
+                                   })
+
+      false
     end
   end
 end

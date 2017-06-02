@@ -24,12 +24,26 @@ class Index extends App.ControllerIntegrationBase
       facility: 'ldap'
     )
 
+  switch: =>
+    super
+    active = @$('.js-switch input').prop('checked')
+    if active
+      @ajax(
+        id:   'jobs_config'
+        type: 'POST'
+        url:  "#{@apiPath}/integration/ldap/job_start"
+        processData: true
+        success: (data, status, xhr) =>
+          @render(true)
+      )
+
 class Form extends App.Controller
   elements:
     '.js-lastImport': 'lastImport'
     '.js-wizard': 'wizardButton'
   events:
     'click .js-wizard': 'startWizard'
+    'click .js-start-sync': 'startSync'
 
   constructor: ->
     super
@@ -42,20 +56,20 @@ class Form extends App.Controller
 
   setConfig: (value) =>
     App.Setting.set('ldap_config', value, {notify: true})
-    @ajax(
-      id:   'jobs_config'
-      type: 'POST'
-      url:  "#{@apiPath}/integration/ldap/job_start"
-      processData: true
-      success: (data, status, xhr) =>
-        @render(true)
-    )
+    @startSync()
 
   render: (top = false) =>
     @config = @currentConfig()
 
+    group_role_map = {}
+    for source, dests of @config.group_role_map
+      group_role_map[source] = dests.map((dest) ->
+        App.Role.find(dest).displayName()
+      ).join ', '
+
     @html App.view('integration/ldap')(
-      config: @config
+      config: @config,
+      group_role_map: group_role_map
     )
     if _.isEmpty(@config)
       @$('.js-notConfigured').removeClass('hide')
@@ -68,6 +82,16 @@ class Form extends App.Controller
       a = =>
         @scrollToIfNeeded($('.content.active .page-header'))
       @delay(a, 500)
+
+  startSync: =>
+    @ajax(
+      id:   'jobs_config'
+      type: 'POST'
+      url:  "#{@apiPath}/integration/ldap/job_start"
+      processData: true
+      success: (data, status, xhr) =>
+        @render(true)
+    )
 
   startWizard: (e) =>
     e.preventDefault()
@@ -152,12 +176,13 @@ class ConnectionWizard extends App.WizardModal
     'click .js-userMappingForm .js-add': 'addUserMapping'
     'click .js-groupRoleForm .js-add':   'addGroupRoleMapping'
     'click .js-goToSlide':               'goToSlide'
-    'input .js-hostUrl':                 'checkSslVerifyDisabled'
+    'input .js-hostUrl':                 'sslVerifyChange'
 
   elements:
     '.modal-body': 'body'
     '.js-userMappingForm': 'userMappingForm'
     '.js-groupRoleForm': 'groupRoleForm'
+    '.js-expertForm': 'expertForm'
 
   constructor: ->
     super
@@ -205,12 +230,26 @@ class ConnectionWizard extends App.WizardModal
 
   showHost: =>
     @$('.js-discover input[name="host_url"]').val(@wizardConfig.host_url)
-    @showSslVerify()
+    @checkSslVerifyVisibility(@wizardConfig.host_url)
 
-  showSslVerify: =>
+  sslVerifyChange: (e) =>
+    @checkSslVerifyVisibility($(e.currentTarget).val())
+
+  checkSslVerifyVisibility: (host_url) =>
+    el     = @$('.js-discover .js-sslVerify')
+    exists = el.length
+
     disabled = true
-    if @wizardConfig.host_url && @wizardConfig.host_url.startsWith('ldaps')
+    if host_url && host_url.startsWith('ldaps')
       disabled = false
+
+    if exists && disabled
+      el.parent().remove()
+    else if !exists && !disabled
+      @$('.js-discover tbody tr').last().after(@buildRowSslVerify())
+
+  buildRowSslVerify: =>
+    el = $(App.view('integration/ldap_ssl_verify_row')())
 
     ssl_verify = true
     if typeof @wizardConfig.ssl_verify != 'undefined'
@@ -221,15 +260,11 @@ class ConnectionWizard extends App.WizardModal
       null: false
       options: { true: 'yes', false: 'no' }
       default: ssl_verify
-      disabled: disabled
       translate: true
       class: 'form-control form-control--small'
     )
-    @$('.js-discover .js-sslVerify').html sslVerifyElement
-
-  checkSslVerifyDisabled: (e) =>
-    enabled = $(e.currentTarget).val().startsWith('ldaps')
-    @$('.js-discover .js-sslVerify select[name="ssl_verify"]').prop('disabled', !enabled)
+    el.find('.js-sslVerify').html sslVerifyElement
+    el
 
   discover: (e) =>
     e.preventDefault()
@@ -252,12 +287,13 @@ class ConnectionWizard extends App.WizardModal
 
         option = ''
         options = {}
-        for dn in data.attributes.namingcontexts
-          options[dn] = dn
-          if option is ''
-            option = dn
-          if option.length > dn.length
-            option = dn
+        if !_.isEmpty data.attributes
+          for dn in data.attributes.namingcontexts
+            options[dn] = dn
+            if option is ''
+              option = dn
+            if option.length > dn.length
+              option = dn
 
         @wizardConfig.options = options
         @wizardConfig.option = option
@@ -276,7 +312,7 @@ class ConnectionWizard extends App.WizardModal
 
   bindShow: (alreadyShown) =>
     @showSlide('js-bind') if !alreadyShown
-    @$('.js-bind .js-baseDn').html(@createSelection('base_dn', @wizardConfig.options, @wizardConfig.option))
+    @$('.js-bind .js-baseDn').html(@createSelection('base_dn', @wizardConfig.options, @wizardConfig.base_dn || @wizardConfig.option, true))
     @$('.js-bind input[name="bind_user"]').val(@wizardConfig.bind_user)
     @$('.js-bind input[name="bind_pw"]').val(@wizardConfig.bind_pw)
 
@@ -358,6 +394,14 @@ class ConnectionWizard extends App.WizardModal
     @groupRoleForm.find('tbody tr.js-entry').remove()
     @groupRoleForm.find('tbody tr').before(@buildRowsGroupRole(@wizardConfig.group_role_map))
 
+    @$('.js-mapping input[name="user_filter"]').val(@wizardConfig.user_filter)
+
+    unassigned_users_choices =
+      sigup_roles: App.i18n.translatePlain('Assign signup roles')
+      skip_sync: App.i18n.translatePlain('Don\'t synchronize')
+
+    @$('.js-unassignedUsers').html(@createSelection('unassigned_users', unassigned_users_choices, @wizardConfig.unassigned_users || 'sigup_roles'))
+
   mappingChange: (e) =>
     e.preventDefault()
 
@@ -383,8 +427,15 @@ class ConnectionWizard extends App.WizardModal
     length = group_role_map.source.length-1
     for count in [0..length]
       if group_role_map.source[count] && group_role_map.dest[count]
-        group_role_map_local[group_role_map.source[count]] = group_role_map.dest[count]
+        if !_.isArray(group_role_map_local[group_role_map.source[count]])
+          group_role_map_local[group_role_map.source[count]] = []
+        group_role_map_local[group_role_map.source[count]].push group_role_map.dest[count]
     @wizardConfig.group_role_map = group_role_map_local
+
+    expertSettings = @formParam(@expertForm)
+
+    @wizardConfig.user_filter      = expertSettings.user_filter
+    @wizardConfig.unassigned_users = expertSettings.unassigned_users
 
     @tryShow()
 
@@ -413,8 +464,9 @@ class ConnectionWizard extends App.WizardModal
 
   buildRowsGroupRole: (group_role_map) =>
     el = []
-    for source, dest of group_role_map
-      el.push @buildRowGroupRole(source, dest)
+    for source, dests of group_role_map
+      for dest in dests
+        el.push @buildRowGroupRole(source, dest)
     el
 
   buildRowGroupRole: (source, dest) =>
@@ -423,7 +475,7 @@ class ConnectionWizard extends App.WizardModal
     el.find('.js-roleList').html(@createSelection('dest', @wizardConfig.wizardData.roles, dest))
     el
 
-  createSelection: (name, options, selected) ->
+  createSelection: (name, options, selected, unknown) ->
     return App.UiElement.searchable_select.render(
       name: name
       multiple: false
@@ -432,6 +484,7 @@ class ConnectionWizard extends App.WizardModal
       nulloption: false
       options: options
       value: selected
+      unknown: unknown
       class: 'form-control--small'
     )
 
@@ -473,9 +526,9 @@ class ConnectionWizard extends App.WizardModal
         finished: true
       processData: true
       success: (job, status, xhr) =>
-        if job.result && job.result.error
+        if job.result && (job.result.error || job.result.info)
           @showSlide('js-error')
-          @showAlert('js-error', job.result.error)
+          @showAlert('js-error', (job.result.error || job.result.info))
           return
 
         if job.result && job.result.sum

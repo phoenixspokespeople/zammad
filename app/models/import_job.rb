@@ -18,7 +18,8 @@ class ImportJob < ApplicationModel
   def start
     self.started_at = Time.zone.now
     save
-    name.constantize.new(self)
+    instance = name.constantize.new(self)
+    instance.start
   rescue => e
     Rails.logger.error e
 
@@ -31,6 +32,25 @@ class ImportJob < ApplicationModel
   ensure
     self.finished_at = Time.zone.now
     save
+  end
+
+  # Gets called when the Scheduler gets (re-)started and this job was still
+  # in the queue. If `finished_at` is blank the call is piped through to
+  # the ImportJob backend which has to decide how to go from here. The delayed
+  # job will get destroyed if rescheduled? is not implemented
+  # as an ImportJob backend class method.
+  #
+  # @see Scheduler#cleanup_delayed
+  #
+  # @example
+  #  import.reschedule?(delayed_job)
+  #
+  # return [Boolean] whether the ImportJob should get rescheduled (true) or destroyed (false)
+  def reschedule?(delayed_job)
+    return false if finished_at.present?
+    instance = name.constantize.new(self)
+    return false if !instance.respond_to?(:reschedule?)
+    instance.reschedule?(delayed_job)
   end
 
   # Convenience wrapper around the start method for starting (delayed) dry runs.
@@ -81,7 +101,7 @@ class ImportJob < ApplicationModel
   end
 
   # Queues all configured import backends from Setting 'import_backends' as import jobs
-  # that are not yet queued.
+  # that are not yet queued. Backends which are not #queueable? are skipped.
   #
   # @example
   #  ImportJob.queue_registered
@@ -97,6 +117,9 @@ class ImportJob < ApplicationModel
         Rails.logger.error "Invalid import backend '#{backend}'"
         next
       end
+
+      # skip backends that are not "ready" yet
+      next if !backend.constantize.queueable?
 
       # skip if no entry exists
       # skip if a not finished entry exists

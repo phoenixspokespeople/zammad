@@ -5078,7 +5078,6 @@ footer {
       min-height: 20px;
       vertical-align: bottom;
       border: none;
-      background: none !important; // overwrite [contenteditable]:hover
       outline: none;
       resize: none;
     }
@@ -5530,7 +5529,7 @@ footer {
 }
 
   .box.box--newTicket {
-    max-width: 658px;
+    max-width: 1080px;
     margin-left: auto;
     margin-right: auto;
   }
@@ -8392,6 +8391,14 @@ output {
 }
 
 .richtext-content {
+  &[contenteditable] {
+    &,
+    &:hover,
+    &:focus {
+      background: none;
+    }
+  }
+
   table,
   pre,
   blockquote {
