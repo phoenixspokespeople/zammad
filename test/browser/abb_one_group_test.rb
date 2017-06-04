@@ -214,8 +214,14 @@ class AgentTicketActionLevel0Test < TestCase
       data: {
         name:   "some group #{rand(999_999_999)}",
         member: [
-          'master@example.com',
-          'agent1@example.com',
+          {
+            login: 'master@example.com',
+            type: 'all',
+          },
+          {
+            login: 'agent1@example.com',
+            type: 'all',
+          },
         ],
       },
     )

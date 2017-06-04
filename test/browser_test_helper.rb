@@ -2869,7 +2869,10 @@ wait untill text in selector disabppears
       name:      'some sla' + random,
       signature: 'some signature bame',
       member:    [
-        'some_user_login',
+        {
+          login: 'some_user_login',
+          type: 'all',
+        },
       ],
     },
   )
@@ -2922,20 +2925,20 @@ wait untill text in selector disabppears
 
         # add member
         if data[:member]
-          data[:member].each { |login|
+          data[:member].each { |member|
             instance.find_elements(css: 'a[href="#manage"]')[0].click
             sleep 1
             instance.find_elements(css: '.content.active a[href="#manage/users"]')[0].click
             sleep 3
             element = instance.find_elements(css: '.content.active [name="search"]')[0]
             element.clear
-            element.send_keys(login)
+            element.send_keys(member[:login])
             sleep 3
             #instance.find_elements(:css => '.content.active table [data-id]')[0].click
             instance.execute_script('$(".content.active  table [data-id] td").first().click()')
             sleep 3
             #instance.find_elements(:css => 'label:contains(" ' + action[:name] + '")')[0].click
-            instance.execute_script('$(\'label:contains(" ' + data[:name] + '")\').first().click()')
+            instance.execute_script('$(".js-groupList tr:contains(\"' + data[:name] + '\") .js-groupListItem[value=' + member[:type] + ']").prop("checked", true)')
             instance.find_elements(css: '.modal button.js-submit')[0].click
             modal_disappear(browser: instance)
           }
