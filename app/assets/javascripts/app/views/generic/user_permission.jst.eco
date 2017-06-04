@@ -42,7 +42,7 @@
           <% for key, text of @groupRights: %>
             <td>
             <label class="inline-label checkbox-replacement">
-              <input type="checkbox" value="<%= key %>" name="group_ids::<%= group.id %>" <% if _.contains(permissions, key): %>checked<% end %>/>
+              <input class="js-groupListItem" type="checkbox" value="<%= key %>" name="group_ids::<%= group.id %>" <% if _.contains(permissions, key): %>checked<% end %>/>
               <%- @Icon('checkbox', 'icon-unchecked') %>
               <%- @Icon('checkbox-checked', 'icon-checked') %>
             </label>
