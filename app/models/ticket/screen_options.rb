@@ -90,7 +90,12 @@ returns
     dependencies = { group_id: { '' => { owner_id: [] } } }
 
     filter[:group_id] = []
-    params[:current_user].group_ids_all('create').each { |group_id|
+    group_ids = if params[:current_user].permissions?('ticket.agent')
+                  params[:current_user].group_ids_all('create')
+                else
+                  Group.where(active: true).pluck(:id)
+                end
+    group_ids.each { |group_id|
       filter[:group_id].push group_id
       group = Group.find(group_id)
       assets = group.assets(assets)
