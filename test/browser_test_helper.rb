@@ -1875,6 +1875,11 @@ wait untill text in selector disabppears
         # check count of agents, should be only 1 / - selection on init screen
         if !params[:disable_group_check]
           count = instance.find_elements(css: '.content.active .newTicket select[name="owner_id"] option').count
+          if count != 1
+            instance.find_elements(css: '.content.active .newTicket select[name="owner_id"] option').each { |element|
+              log('ticket_create invalid owner count', text: element.text)
+            }
+          end
           assert_equal(1, count, 'check if owner selection is empty per default')
         end
         select(
